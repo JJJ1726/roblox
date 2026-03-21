@@ -28,6 +28,10 @@
   - creates the chamber world object if missing
   - validates chamber actions
   - schedules mutation completion
+- `ResearchExchangeService`
+  - exposes the mutant sell remote
+  - validates sell requests through inventory state
+  - returns updated economy state to the client
 
 ### Client
 - `MutationChamberController`
@@ -49,9 +53,12 @@
   - pushes fresh server state to the player
 - `RemoteEvent MutationResolved`
   - pushes the final result immediately on completion
+- `RemoteFunction SellMutant`
+  - sells a stored mutant for soft currency
 
 ## Persistence Model
 Player data stores:
+- currency balances
 - base organism inventory
 - mutant inventory
 - chamber inserted specimen
@@ -65,4 +72,4 @@ Persisting the chamber payload allows a mutation to resume or resolve after a re
 - Chamber logic is per-player right now even though the scene object is shared.
 - Mutation rolls are data-driven so new organisms, rarity tiers, or event pools can be added without rewriting the loop.
 - Inventory output currently stores full mutant records in one list. If the game scales hard, this should move to stacked variants, pagination, or archive buckets.
-
+- Research sell values are config-driven, so balance tuning can happen without changing the core server flow.

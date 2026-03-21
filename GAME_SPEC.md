@@ -3,12 +3,9 @@
 ## Vision
 Mutation Lab is a session-friendly Roblox experience where players feed simple organisms into experimental chambers, wait through a short mutation cycle, and collect bizarre creations with different rarity and trait rolls.
 
-This repository only implements the first vertical slice:
-- one playable Mutation Chamber loop
-- one starter base organism
-- weighted RNG mutation results
-- a failure state
-- persistence for inventory, chamber state, and created mutants
+This repository currently implements two completed slices:
+- Slice 1: a playable Mutation Chamber loop
+- Slice 2: a Research Exchange loop that converts mutants into soft currency
 
 ## Player Fantasy
 - I run a sketchy biotech lab.
@@ -34,11 +31,16 @@ This repository only implements the first vertical slice:
   - chance to fail
 - Mutation duration:
   - 10 seconds
+- Research economy:
+  - sell completed mutants for `DNA Credits`
+  - rarity-based sell values
+  - persistent currency balance
 
 ## Retention Priorities
 - Short interaction loop with immediate replay potential
 - Persistent mutant collection
 - Visible chamber state so players know what to do next
+- Simple reward sink and payout language so progress feels measurable early
 - Room for daily rewards, quests, and chained crafting later
 
 ## Monetization Priorities For Future Slices
@@ -48,4 +50,3 @@ This repository only implements the first vertical slice:
 - Limited event trait pools
 
 These are intentionally not implemented yet. The first slice stays focused on one clean, replayable system.
-

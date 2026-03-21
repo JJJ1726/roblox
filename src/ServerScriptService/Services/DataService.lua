@@ -40,6 +40,9 @@ local function createDefaultData()
 
 	return {
 		version = 1,
+		currencies = {
+			dna = 0,
+		},
 		inventory = {
 			baseOrganisms = starterInventory,
 			mutants = {},
@@ -52,6 +55,8 @@ local function createDefaultData()
 			mutationsStarted = 0,
 			mutationsCompleted = 0,
 			failures = 0,
+			mutantsSold = 0,
+			dnaEarned = 0,
 		},
 		lastResolvedMutation = nil,
 	}

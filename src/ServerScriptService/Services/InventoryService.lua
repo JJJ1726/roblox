@@ -22,6 +22,23 @@ local function cloneTraits(traits)
 	return clonedTraits
 end
 
+local function getSellValueForRarity(rarity)
+	return MutationConfig.Economy.SellValuesByRarity[rarity] or 0
+end
+
+local function cloneMutantForClient(mutantRecord)
+	return {
+		instanceId = mutantRecord.instanceId,
+		baseName = mutantRecord.baseName,
+		displayName = mutantRecord.displayName,
+		rarity = mutantRecord.rarity,
+		traits = cloneTraits(mutantRecord.traits),
+		summary = mutantRecord.summary,
+		createdAt = mutantRecord.createdAt,
+		sellValue = getSellValueForRarity(mutantRecord.rarity),
+	}
+end
+
 function InventoryService:Init(dataService)
 	self._dataService = dataService
 end
@@ -33,6 +50,7 @@ end
 function InventoryService:GetClientState(player)
 	local playerData = self:GetPlayerData(player)
 	local baseInventory = {}
+	local recentMutants = {}
 
 	for _, baseId in ipairs(MutationConfig.BaseOrganismOrder) do
 		local definition = getBaseDefinition(baseId)
@@ -79,15 +97,29 @@ function InventoryService:GetClientState(player)
 		}
 	end
 
+	for index = #playerData.inventory.mutants, math.max(#playerData.inventory.mutants - 5, 1), -1 do
+		local mutantRecord = playerData.inventory.mutants[index]
+		if mutantRecord then
+			table.insert(recentMutants, cloneMutantForClient(mutantRecord))
+		end
+	end
+
 	return {
+		economy = {
+			currencyName = MutationConfig.Economy.CurrencyName,
+			dna = playerData.currencies.dna or 0,
+		},
 		baseInventory = baseInventory,
 		insertedBase = insertedBase,
 		activeMutation = activeMutation,
 		mutantCount = #playerData.inventory.mutants,
+		recentMutants = recentMutants,
 		stats = {
 			mutationsStarted = playerData.stats.mutationsStarted,
 			mutationsCompleted = playerData.stats.mutationsCompleted,
 			failures = playerData.stats.failures,
+			mutantsSold = playerData.stats.mutantsSold,
+			dnaEarned = playerData.stats.dnaEarned,
 		},
 		lastResolvedMutation = lastResolvedMutation,
 	}
@@ -183,5 +215,32 @@ function InventoryService:ResolveMutation(player, mutationRecord, mutationResult
 	return true, self:GetClientState(player), resolvedMutation
 end
 
-return InventoryService
+function InventoryService:SellMutant(player, mutantInstanceId)
+	local playerData = self:GetPlayerData(player)
 
+	for index, mutantRecord in ipairs(playerData.inventory.mutants) do
+		if mutantRecord.instanceId == mutantInstanceId then
+			local sellValue = getSellValueForRarity(mutantRecord.rarity)
+			if sellValue <= 0 then
+				return false, "This mutant cannot be sold."
+			end
+
+			table.remove(playerData.inventory.mutants, index)
+			playerData.currencies.dna = (playerData.currencies.dna or 0) + sellValue
+			playerData.stats.mutantsSold += 1
+			playerData.stats.dnaEarned += sellValue
+			self._dataService:MarkDirty(player)
+
+			return true, self:GetClientState(player), {
+				instanceId = mutantRecord.instanceId,
+				displayName = mutantRecord.displayName,
+				rarity = mutantRecord.rarity,
+				sellValue = sellValue,
+			}
+		end
+	end
+
+	return false, "Mutant not found."
+end
+
+return InventoryService

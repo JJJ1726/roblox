@@ -19,6 +19,16 @@ MutationConfig.MutationChamber = {
 	SecondaryTraitChance = 0.75,
 }
 
+MutationConfig.Economy = {
+	CurrencyName = "DNA Credits",
+	SellValuesByRarity = {
+		Common = 12,
+		Rare = 24,
+		Epic = 55,
+		Legendary = 130,
+	},
+}
+
 MutationConfig.RarityOrder = {
 	"Common",
 	"Rare",
@@ -100,4 +110,3 @@ MutationConfig.FailureResult = {
 }
 
 return MutationConfig
-

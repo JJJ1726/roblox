@@ -9,11 +9,13 @@
 - [x] Add mutation failure outcome
 - [x] Add basic mutation UI with timer and result popup
 - [x] Persist inventory, chamber state, and created mutants
+- [x] Add research exchange sell flow for stored mutants
+- [x] Add soft currency reward loop with persistent DNA Credits
 
 ## Next Recommended Slice
 - [ ] Add a second base organism with a different trait pool bias
-- [ ] Add sell/equip flow for created mutants
-- [ ] Add a soft currency reward loop
+- [ ] Add a spend sink that uses DNA Credits to unlock new organisms
+- [ ] Add equip or display flow for created mutants
 - [ ] Add a fast-forward monetization hook for mutation timers
 
 ## Deferred On Purpose
@@ -22,4 +24,3 @@
 - [ ] Quest system
 - [ ] Event trait rotations
 - [ ] Trading
-
