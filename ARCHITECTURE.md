@@ -32,6 +32,10 @@
   - exposes the mutant sell remote
   - validates sell requests through inventory state
   - returns updated economy state to the client
+- `OrganismUnlockService`
+  - exposes the organism unlock remote
+  - spends soft currency to unlock new specimen types
+  - grants starter stock for newly unlocked organisms
 
 ### Client
 - `MutationChamberController`
@@ -55,11 +59,14 @@
   - pushes the final result immediately on completion
 - `RemoteFunction SellMutant`
   - sells a stored mutant for soft currency
+- `RemoteFunction UnlockBaseOrganism`
+  - unlocks a new specimen type and grants its starter stock
 
 ## Persistence Model
 Player data stores:
 - currency balances
 - base organism inventory
+- organism unlock progression
 - mutant inventory
 - chamber inserted specimen
 - active mutation payload
@@ -73,3 +80,4 @@ Persisting the chamber payload allows a mutation to resume or resolve after a re
 - Mutation rolls are data-driven so new organisms, rarity tiers, or event pools can be added without rewriting the loop.
 - Inventory output currently stores full mutant records in one list. If the game scales hard, this should move to stacked variants, pagination, or archive buckets.
 - Research sell values are config-driven, so balance tuning can happen without changing the core server flow.
+- Organism unlock state is separate from inventory counts, so an unlocked organism can stay available even after its stock hits zero.

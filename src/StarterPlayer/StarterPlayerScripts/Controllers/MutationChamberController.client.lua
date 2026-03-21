@@ -81,6 +81,41 @@ local function updateButtonState(button, enabled)
 	button.BackgroundTransparency = enabled and 0 or 0.25
 end
 
+local function getRarityColor(rarityId)
+	local rarityDefinition = MutationConfig.RarityTiers[rarityId]
+	if rarityDefinition then
+		return rarityDefinition.color
+	end
+
+	local resultStyle = MutationConfig.ResultStyles[rarityId]
+	if resultStyle then
+		return resultStyle.color
+	end
+
+	return Color3.fromRGB(240, 248, 255)
+end
+
+local function formatTime(secondsRemaining)
+	local safeSeconds = math.max(0, secondsRemaining)
+	local minutes = math.floor(safeSeconds / 60)
+	local seconds = safeSeconds % 60
+	return string.format("%02d:%02d", minutes, seconds)
+end
+
+local function invokeServer(remoteName, ...)
+	local remote = remotes:WaitForChild(remoteName)
+	local ok, response = pcall(function()
+		return remote:InvokeServer(...)
+	end)
+
+	if not ok then
+		warn(response)
+		return nil
+	end
+
+	return response
+end
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MutationLabGui"
 screenGui.ResetOnSpawn = false
@@ -91,7 +126,7 @@ local panel = Instance.new("Frame")
 panel.Name = "Panel"
 panel.AnchorPoint = Vector2.new(0.5, 0.5)
 panel.Position = UDim2.fromScale(0.5, 0.54)
-panel.Size = UDim2.fromOffset(470, 596)
+panel.Size = UDim2.fromOffset(470, 688)
 panel.BackgroundColor3 = Color3.fromRGB(15, 23, 30)
 panel.Visible = false
 panel.Parent = screenGui
@@ -105,7 +140,7 @@ panelStroke.Color = Color3.fromRGB(90, 164, 194)
 panelStroke.Thickness = 2
 panelStroke.Parent = panel
 
-local titleLabel = createLabel(panel, "Title", "Mutation Chamber", UDim2.fromOffset(300, 40), UDim2.fromOffset(22, 18), 28)
+local titleLabel = createLabel(panel, "Title", "Mutation Lab", UDim2.fromOffset(300, 40), UDim2.fromOffset(22, 18), 28)
 titleLabel.Font = Enum.Font.GothamBlack
 
 local closeButton = createButton(panel, "CloseButton", "Close", UDim2.fromOffset(88, 34), UDim2.fromOffset(360, 20), Color3.fromRGB(233, 110, 110))
@@ -113,7 +148,7 @@ local closeButton = createButton(panel, "CloseButton", "Close", UDim2.fromOffset
 local subtitleLabel = createLabel(
 	panel,
 	"Subtitle",
-	"Grow unstable life, then recycle the survivors into research funding.",
+	"Unlock new specimens, mutate them, and recycle the survivors into deeper lab progression.",
 	UDim2.fromOffset(410, 40),
 	UDim2.fromOffset(22, 56),
 	14,
@@ -121,33 +156,56 @@ local subtitleLabel = createLabel(
 )
 subtitleLabel.TextWrapped = true
 
-local overviewCard = createCard(panel, "OverviewCard", UDim2.fromOffset(426, 156), UDim2.fromOffset(22, 104), Color3.fromRGB(21, 33, 43))
-local mutationCard = createCard(panel, "MutationCard", UDim2.fromOffset(426, 116), UDim2.fromOffset(22, 276), Color3.fromRGB(22, 34, 41))
-local researchCard = createCard(panel, "ResearchCard", UDim2.fromOffset(426, 180), UDim2.fromOffset(22, 406), Color3.fromRGB(21, 33, 43))
+local overviewCard = createCard(panel, "OverviewCard", UDim2.fromOffset(426, 250), UDim2.fromOffset(22, 104), Color3.fromRGB(21, 33, 43))
+local mutationCard = createCard(panel, "MutationCard", UDim2.fromOffset(426, 92), UDim2.fromOffset(22, 370), Color3.fromRGB(22, 34, 41))
+local researchCard = createCard(panel, "ResearchCard", UDim2.fromOffset(426, 190), UDim2.fromOffset(22, 478), Color3.fromRGB(21, 33, 43))
 
-local currencyLabel = createLabel(overviewCard, "CurrencyLabel", "DNA Credits: 0", UDim2.fromOffset(380, 26), UDim2.fromOffset(16, 12), 20, Color3.fromRGB(153, 241, 155))
+local currencyLabel = createLabel(overviewCard, "CurrencyLabel", "DNA Credits: 0", UDim2.fromOffset(380, 24), UDim2.fromOffset(16, 12), 20, Color3.fromRGB(153, 241, 155))
 currencyLabel.Font = Enum.Font.GothamBold
 
-local inventoryLabel = createLabel(overviewCard, "InventoryLabel", "Proto Slime: 0", UDim2.fromOffset(380, 24), UDim2.fromOffset(16, 42), 17)
-local chamberLabel = createLabel(overviewCard, "ChamberLabel", "Loaded specimen: Empty", UDim2.fromOffset(380, 24), UDim2.fromOffset(16, 68), 17)
-local timerLabel = createLabel(overviewCard, "TimerLabel", "Timer: Idle", UDim2.fromOffset(380, 24), UDim2.fromOffset(16, 94), 17)
-local storageLabel = createLabel(overviewCard, "StorageLabel", "Stored mutants: 0 | Sold: 0", UDim2.fromOffset(380, 24), UDim2.fromOffset(16, 120), 17)
+local inventoryLabel = createLabel(overviewCard, "InventoryLabel", "Unlocked organisms: 1/1", UDim2.fromOffset(390, 20), UDim2.fromOffset(16, 40), 16)
+local chamberLabel = createLabel(overviewCard, "ChamberLabel", "Loaded specimen: Empty", UDim2.fromOffset(390, 20), UDim2.fromOffset(16, 62), 16)
+local timerLabel = createLabel(overviewCard, "TimerLabel", "Timer: Idle", UDim2.fromOffset(390, 20), UDim2.fromOffset(16, 84), 16)
+local storageLabel = createLabel(overviewCard, "StorageLabel", "Stored mutants: 0 | Sold: 0", UDim2.fromOffset(390, 20), UDim2.fromOffset(16, 106), 16)
 
-local mutationHeader = createLabel(mutationCard, "MutationHeader", "Mutation Controls", UDim2.fromOffset(240, 24), UDim2.fromOffset(16, 10), 20)
+local organismHeader = createLabel(overviewCard, "OrganismHeader", "Specimen Catalog", UDim2.fromOffset(240, 24), UDim2.fromOffset(16, 140), 18)
+organismHeader.Font = Enum.Font.GothamBold
+
+local organismHint = createLabel(
+	overviewCard,
+	"OrganismHint",
+	"Unlock locked organisms with DNA Credits. Load an unlocked specimen directly into the chamber.",
+	UDim2.fromOffset(392, 30),
+	UDim2.fromOffset(16, 164),
+	13,
+	Color3.fromRGB(180, 202, 219)
+)
+
+local organismListFrame = Instance.new("Frame")
+organismListFrame.Name = "OrganismListFrame"
+organismListFrame.Position = UDim2.fromOffset(12, 188)
+organismListFrame.Size = UDim2.fromOffset(402, 56)
+organismListFrame.BackgroundTransparency = 1
+organismListFrame.Parent = overviewCard
+
+local organismListLayout = Instance.new("UIListLayout")
+organismListLayout.Padding = UDim.new(0, 4)
+organismListLayout.Parent = organismListFrame
+
+local mutationHeader = createLabel(mutationCard, "MutationHeader", "Mutation Controls", UDim2.fromOffset(220, 24), UDim2.fromOffset(16, 10), 20)
 mutationHeader.Font = Enum.Font.GothamBold
 
 local statusLabel = createLabel(
 	mutationCard,
 	"StatusLabel",
-	"Walk to the chamber and press E.",
-	UDim2.fromOffset(388, 36),
-	UDim2.fromOffset(16, 38),
-	14,
+	"Load a specimen from the catalog, then start the chamber.",
+	UDim2.fromOffset(388, 22),
+	UDim2.fromOffset(16, 34),
+	13,
 	Color3.fromRGB(255, 220, 154)
 )
 
-local insertButton = createButton(mutationCard, "InsertButton", "Insert Proto Slime", UDim2.fromOffset(186, 42), UDim2.fromOffset(16, 68), Color3.fromRGB(120, 232, 177))
-local mutateButton = createButton(mutationCard, "MutateButton", "Start Mutation", UDim2.fromOffset(186, 42), UDim2.fromOffset(224, 68), Color3.fromRGB(255, 215, 110))
+local mutateButton = createButton(mutationCard, "MutateButton", "Start Mutation", UDim2.fromOffset(388, 34), UDim2.fromOffset(16, 52), Color3.fromRGB(255, 215, 110))
 
 local researchHeader = createLabel(researchCard, "ResearchHeader", "Research Exchange", UDim2.fromOffset(240, 24), UDim2.fromOffset(16, 10), 20)
 researchHeader.Font = Enum.Font.GothamBold
@@ -155,8 +213,8 @@ researchHeader.Font = Enum.Font.GothamBold
 local researchHint = createLabel(
 	researchCard,
 	"ResearchHint",
-	"Sell finished mutants for DNA Credits. Higher rarity pays more.",
-	UDim2.fromOffset(390, 30),
+	"Sell finished mutants for DNA Credits. That currency now unlocks new specimen types.",
+	UDim2.fromOffset(390, 32),
 	UDim2.fromOffset(16, 38),
 	14,
 	Color3.fromRGB(180, 202, 219)
@@ -164,13 +222,12 @@ local researchHint = createLabel(
 
 local mutantList = Instance.new("ScrollingFrame")
 mutantList.Name = "MutantList"
-mutantList.Position = UDim2.fromOffset(12, 68)
-mutantList.Size = UDim2.fromOffset(402, 102)
+mutantList.Position = UDim2.fromOffset(12, 78)
+mutantList.Size = UDim2.fromOffset(402, 100)
 mutantList.BackgroundTransparency = 1
 mutantList.BorderSizePixel = 0
 mutantList.ScrollBarThickness = 6
 mutantList.CanvasSize = UDim2.fromOffset(0, 0)
-mutantList.AutomaticCanvasSize = Enum.AutomaticSize.None
 mutantList.Parent = researchCard
 
 local mutantListLayout = Instance.new("UIListLayout")
@@ -189,7 +246,7 @@ local emptyMutantsLabel = createLabel(
 	"EmptyMutantsLabel",
 	"No mutants stored yet. Finish a mutation first.",
 	UDim2.fromOffset(390, 24),
-	UDim2.fromOffset(16, 106),
+	UDim2.fromOffset(16, 116),
 	14,
 	Color3.fromRGB(133, 157, 171)
 )
@@ -221,56 +278,6 @@ local popupSummary = createLabel(resultPopup, "PopupSummary", "", UDim2.fromOffs
 local function setStatus(message, color)
 	statusLabel.Text = message
 	statusLabel.TextColor3 = color or Color3.fromRGB(255, 220, 154)
-end
-
-local function formatTime(secondsRemaining)
-	local safeSeconds = math.max(0, secondsRemaining)
-	local minutes = math.floor(safeSeconds / 60)
-	local seconds = safeSeconds % 60
-	return string.format("%02d:%02d", minutes, seconds)
-end
-
-local function getRarityColor(rarityId)
-	local rarityDefinition = MutationConfig.RarityTiers[rarityId]
-	if rarityDefinition then
-		return rarityDefinition.color
-	end
-
-	local resultStyle = MutationConfig.ResultStyles[rarityId]
-	if resultStyle then
-		return resultStyle.color
-	end
-
-	return Color3.fromRGB(240, 248, 255)
-end
-
-local function getPrimaryBaseEntry()
-	if controller.state == nil then
-		return nil
-	end
-
-	for _, entry in ipairs(controller.state.baseInventory or {}) do
-		if entry.quantity > 0 then
-			return entry
-		end
-	end
-
-	return controller.state.baseInventory and controller.state.baseInventory[1] or nil
-end
-
-local function invokeServer(remoteName, ...)
-	local remote = remotes:WaitForChild(remoteName)
-	local ok, response = pcall(function()
-		return remote:InvokeServer(...)
-	end)
-
-	if not ok then
-		setStatus("Server call failed. Check output for errors.", Color3.fromRGB(255, 143, 143))
-		warn(response)
-		return nil
-	end
-
-	return response
 end
 
 local function showResultPopup(result)
@@ -321,13 +328,6 @@ local function showResultPopup(result)
 	end)
 end
 
-local function refreshState()
-	local state = invokeServer("GetState")
-	if state then
-		controller.state = state
-	end
-end
-
 local function renderMutantList()
 	for _, child in ipairs(mutantList:GetChildren()) do
 		if child:IsA("Frame") then
@@ -340,8 +340,6 @@ local function renderMutantList()
 
 	for _, mutant in ipairs(recentMutants) do
 		local row = createCard(mutantList, mutant.instanceId, UDim2.new(1, -8, 0, 58), UDim2.fromOffset(0, 0), Color3.fromRGB(26, 40, 51))
-		row.AutomaticSize = Enum.AutomaticSize.None
-
 		local nameLabel = createLabel(row, "NameLabel", mutant.displayName, UDim2.fromOffset(210, 22), UDim2.fromOffset(12, 8), 16, getRarityColor(mutant.rarity))
 		nameLabel.Font = Enum.Font.GothamBold
 
@@ -356,6 +354,7 @@ local function renderMutantList()
 		sellButton.Activated:Connect(function()
 			local response = invokeServer("SellMutant", mutant.instanceId)
 			if response == nil then
+				setStatus("Server call failed. Check output for errors.", Color3.fromRGB(255, 143, 143))
 				return
 			end
 
@@ -378,47 +377,146 @@ local function renderMutantList()
 	mutantList.CanvasSize = UDim2.fromOffset(0, mutantListLayout.AbsoluteContentSize.Y + 8)
 end
 
+local function renderOrganismList()
+	for _, child in ipairs(organismListFrame:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+
+	local state = controller.state
+	if state == nil then
+		return
+	end
+
+	local dnaBalance = state.economy and state.economy.dna or 0
+	local insertedBase = state.insertedBase
+	local mutationActive = state.activeMutation ~= nil
+
+	for _, baseEntry in ipairs(state.baseInventory or {}) do
+		local rowColor = baseEntry.unlocked and Color3.fromRGB(26, 40, 51) or Color3.fromRGB(34, 34, 43)
+		local row = createCard(organismListFrame, baseEntry.id, UDim2.new(1, 0, 0, 26), UDim2.fromOffset(0, 0), rowColor)
+
+		local nameColor = baseEntry.unlocked and Color3.fromRGB(240, 248, 255) or Color3.fromRGB(187, 161, 255)
+		local nameLabel = createLabel(row, "NameLabel", baseEntry.name, UDim2.fromOffset(126, 14), UDim2.fromOffset(10, 6), 13, nameColor)
+		nameLabel.Font = Enum.Font.GothamBold
+
+		local detailText
+		if baseEntry.unlocked then
+			detailText = ("Stock: %d"):format(baseEntry.quantity)
+		else
+			detailText = ("Unlock: %d DNA"):format(baseEntry.unlockCost or 0)
+		end
+		createLabel(row, "DetailLabel", detailText, UDim2.fromOffset(130, 14), UDim2.fromOffset(144, 6), 12, Color3.fromRGB(180, 202, 219))
+
+		local buttonText = "Load"
+		local buttonColor = Color3.fromRGB(120, 232, 177)
+		local buttonEnabled = true
+		local actionName = "load"
+
+		if baseEntry.unlocked then
+			if mutationActive then
+				buttonText = "Busy"
+				buttonEnabled = false
+			elseif insertedBase then
+				if insertedBase.id == baseEntry.id then
+					buttonText = "Loaded"
+				else
+					buttonText = "Full"
+				end
+				buttonEnabled = false
+			elseif baseEntry.quantity < 1 then
+				buttonText = "Empty"
+				buttonEnabled = false
+			end
+		else
+			actionName = "unlock"
+			buttonText = ("Unlock %d"):format(baseEntry.unlockCost or 0)
+			buttonColor = Color3.fromRGB(168, 185, 255)
+			if dnaBalance < (baseEntry.unlockCost or 0) then
+				buttonText = ("Need %d"):format(baseEntry.unlockCost or 0)
+				buttonEnabled = false
+			end
+		end
+
+		local actionButton = createButton(row, "ActionButton", buttonText, UDim2.fromOffset(100, 20), UDim2.fromOffset(290, 3), buttonColor)
+		actionButton.TextSize = 11
+		updateButtonState(actionButton, buttonEnabled)
+
+		if buttonEnabled then
+			actionButton.Activated:Connect(function()
+				local response
+				if actionName == "unlock" then
+					response = invokeServer("UnlockBaseOrganism", baseEntry.id)
+				else
+					response = invokeServer("InsertBaseOrganism", baseEntry.id)
+				end
+
+				if response == nil then
+					setStatus("Server call failed. Check output for errors.", Color3.fromRGB(255, 143, 143))
+					return
+				end
+
+				if response.state then
+					applyState(response.state)
+				end
+
+				if actionName == "unlock" then
+					if response.success and response.unlockRecord then
+						setStatus(
+							("Unlocked %s and stocked %d samples."):format(response.unlockRecord.name, response.unlockRecord.grantedQuantity),
+							Color3.fromRGB(153, 241, 155)
+						)
+					else
+						setStatus(response.error or "Unlock failed.", Color3.fromRGB(255, 143, 143))
+					end
+				else
+					if response.success then
+						setStatus(("Loaded %s into the chamber."):format(baseEntry.name), Color3.fromRGB(153, 241, 155))
+					else
+						setStatus(response.error or "Load failed.", Color3.fromRGB(255, 143, 143))
+					end
+				end
+			end)
+		end
+	end
+end
+
 local function render()
 	if controller.state == nil then
 		return
 	end
 
-	local economy = controller.state.economy or {
+	local state = controller.state
+	local economy = state.economy or {
 		currencyName = MutationConfig.Economy.CurrencyName,
 		dna = 0,
 	}
+	local organismSummary = state.organismSummary or {
+		unlockedCount = 0,
+		totalCount = #MutationConfig.BaseOrganismOrder,
+	}
+
 	currencyLabel.Text = string.format("%s: %d", economy.currencyName, economy.dna or 0)
+	inventoryLabel.Text = string.format("Unlocked organisms: %d/%d", organismSummary.unlockedCount or 0, organismSummary.totalCount or 0)
 
-	local baseEntry = controller.state.baseInventory and controller.state.baseInventory[1]
-	if baseEntry then
-		inventoryLabel.Text = string.format("%s: %d", baseEntry.name, baseEntry.quantity)
-		insertButton.Text = ("Insert %s"):format(baseEntry.name)
-	end
-
-	if controller.state.insertedBase then
-		chamberLabel.Text = ("Loaded specimen: %s"):format(controller.state.insertedBase.name)
+	if state.insertedBase then
+		chamberLabel.Text = ("Loaded specimen: %s"):format(state.insertedBase.name)
 	else
 		chamberLabel.Text = "Loaded specimen: Empty"
 	end
 
 	storageLabel.Text = ("Stored mutants: %d | Sold: %d"):format(
-		controller.state.mutantCount or 0,
-		controller.state.stats and controller.state.stats.mutantsSold or 0
+		state.mutantCount or 0,
+		state.stats and state.stats.mutantsSold or 0
 	)
 
-	local canInsert = false
-	local activeMutation = controller.state.activeMutation
-	if activeMutation == nil and controller.state.insertedBase == nil then
-		local insertEntry = getPrimaryBaseEntry()
-		canInsert = insertEntry ~= nil and insertEntry.quantity > 0
-	end
-
-	local canMutate = controller.state.insertedBase ~= nil and activeMutation == nil
-	updateButtonState(insertButton, canInsert)
+	local canMutate = state.insertedBase ~= nil and state.activeMutation == nil
 	updateButtonState(mutateButton, canMutate)
 
+	renderOrganismList()
 	renderMutantList()
-	showResultPopup(controller.state.lastResolvedMutation)
+	showResultPopup(state.lastResolvedMutation)
 end
 
 applyState = function(newState)
@@ -434,32 +532,10 @@ closeButton.Activated:Connect(function()
 	panel.Visible = false
 end)
 
-insertButton.Activated:Connect(function()
-	local baseEntry = getPrimaryBaseEntry()
-	if not baseEntry then
-		setStatus("No base organism is available to insert.", Color3.fromRGB(255, 143, 143))
-		return
-	end
-
-	local response = invokeServer("InsertBaseOrganism", baseEntry.id)
-	if response == nil then
-		return
-	end
-
-	if response.state then
-		applyState(response.state)
-	end
-
-	if response.success then
-		setStatus("Specimen inserted. Start the mutation when ready.", Color3.fromRGB(153, 241, 155))
-	else
-		setStatus(response.error or "Insert failed.", Color3.fromRGB(255, 143, 143))
-	end
-end)
-
 mutateButton.Activated:Connect(function()
 	local response = invokeServer("StartMutation")
 	if response == nil then
+		setStatus("Server call failed. Check output for errors.", Color3.fromRGB(255, 143, 143))
 		return
 	end
 
@@ -521,5 +597,7 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
-refreshState()
-render()
+local initialState = invokeServer("GetState")
+if initialState then
+	applyState(initialState)
+end

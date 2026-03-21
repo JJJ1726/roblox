@@ -32,10 +32,15 @@ end
 
 local function createDefaultData()
 	local starterInventory = {}
+	local unlockedBaseOrganisms = {}
 
 	for _, baseId in ipairs(MutationConfig.BaseOrganismOrder) do
 		local baseDefinition = MutationConfig.BaseOrganisms[baseId]
 		starterInventory[baseId] = baseDefinition.starterCount or 0
+
+		if baseDefinition.defaultUnlocked then
+			unlockedBaseOrganisms[baseId] = true
+		end
 	end
 
 	return {
@@ -46,6 +51,9 @@ local function createDefaultData()
 		inventory = {
 			baseOrganisms = starterInventory,
 			mutants = {},
+		},
+		progression = {
+			unlockedBaseOrganisms = unlockedBaseOrganisms,
 		},
 		chamber = {
 			insertedBaseId = nil,

@@ -3,9 +3,10 @@
 ## Vision
 Mutation Lab is a session-friendly Roblox experience where players feed simple organisms into experimental chambers, wait through a short mutation cycle, and collect bizarre creations with different rarity and trait rolls.
 
-This repository currently implements two completed slices:
+This repository currently implements three completed slices:
 - Slice 1: a playable Mutation Chamber loop
 - Slice 2: a Research Exchange loop that converts mutants into soft currency
+- Slice 3: an organism unlock loop that uses soft currency to expand the specimen catalog
 
 ## Player Fantasy
 - I run a sketchy biotech lab.
@@ -25,6 +26,7 @@ This repository currently implements two completed slices:
 ## Current Content
 - Base organism:
   - `Proto Slime`
+  - `Thorn Bud` after unlock
 - Mutation outcome structure:
   - weighted rarity roll
   - weighted trait roll
@@ -35,6 +37,10 @@ This repository currently implements two completed slices:
   - sell completed mutants for `DNA Credits`
   - rarity-based sell values
   - persistent currency balance
+- Progression unlock:
+  - spend `DNA Credits` to unlock `Thorn Bud`
+  - unlock grants starting stock for the new organism
+  - organism-specific trait bias changes mutation flavor
 
 ## Retention Priorities
 - Short interaction loop with immediate replay potential

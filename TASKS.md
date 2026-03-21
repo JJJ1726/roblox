@@ -11,12 +11,14 @@
 - [x] Persist inventory, chamber state, and created mutants
 - [x] Add research exchange sell flow for stored mutants
 - [x] Add soft currency reward loop with persistent DNA Credits
+- [x] Add a second base organism with a different trait bias
+- [x] Add a DNA Credit spend sink that unlocks a new organism
 
 ## Next Recommended Slice
-- [ ] Add a second base organism with a different trait pool bias
-- [ ] Add a spend sink that uses DNA Credits to unlock new organisms
+- [ ] Add specimen restock purchases for unlocked organisms
 - [ ] Add equip or display flow for created mutants
 - [ ] Add a fast-forward monetization hook for mutation timers
+- [ ] Add a third organism with a more extreme bias profile
 
 ## Deferred On Purpose
 - [ ] Multi-chamber ownership

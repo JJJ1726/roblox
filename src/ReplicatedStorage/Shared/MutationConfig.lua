@@ -2,6 +2,7 @@ local MutationConfig = {}
 
 MutationConfig.BaseOrganismOrder = {
 	"proto_slime",
+	"thorn_bud",
 }
 
 MutationConfig.BaseOrganisms = {
@@ -9,7 +10,32 @@ MutationConfig.BaseOrganisms = {
 		id = "proto_slime",
 		name = "Proto Slime",
 		description = "A stable starter ooze grown for repeatable chamber tests.",
+		defaultUnlocked = true,
 		starterCount = 3,
+		unlockGrantCount = 0,
+		traitBiases = {
+			gooey = 1.35,
+			elastic = 1.2,
+			spotted = 1.1,
+			thorned = 0.65,
+			frostbit = 0.75,
+		},
+	},
+	thorn_bud = {
+		id = "thorn_bud",
+		name = "Thorn Bud",
+		description = "A hostile seedling with a sharp mutation profile.",
+		defaultUnlocked = false,
+		starterCount = 0,
+		unlockCost = 72,
+		unlockGrantCount = 2,
+		traitBiases = {
+			thorned = 2.4,
+			frostbit = 1.45,
+			glimmer = 1.15,
+			gooey = 0.35,
+			elastic = 0.55,
+		},
 	},
 }
 

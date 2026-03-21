@@ -52,14 +52,34 @@ local function pickWeighted(randomObject, weightedItems)
 	return weightedItems[#weightedItems]
 end
 
-local function buildSecondaryTraitPool(primaryTrait, rarityId)
+local function getTraitBias(baseDefinition, traitId)
+	local traitBiases = baseDefinition.traitBiases or {}
+	return traitBiases[traitId] or 1
+end
+
+local function buildPrimaryTraitPool(baseDefinition, rarityId)
+	local adjustedPool = {}
+
+	for _, trait in ipairs(traitsByRarity[rarityId] or {}) do
+		table.insert(adjustedPool, {
+			id = trait.id,
+			name = trait.name,
+			rarity = trait.rarity,
+			weight = trait.weight * getTraitBias(baseDefinition, trait.id),
+		})
+	end
+
+	return adjustedPool
+end
+
+local function buildSecondaryTraitPool(baseDefinition, primaryTrait, rarityId)
 	local adjustedPool = {}
 	local rarityWeights = MutationConfig.SecondaryTraitWeights[rarityId] or {}
 
 	for _, trait in ipairs(MutationConfig.Traits) do
 		if trait.id ~= primaryTrait.id then
 			local rarityMultiplier = rarityWeights[trait.rarity] or 0
-			local adjustedWeight = trait.weight * rarityMultiplier
+			local adjustedWeight = trait.weight * rarityMultiplier * getTraitBias(baseDefinition, trait.id)
 
 			if adjustedWeight > 0 then
 				table.insert(adjustedPool, {
@@ -96,7 +116,7 @@ function MutationRoller.Roll(baseId, seed)
 	end
 
 	local rarityRoll = pickWeighted(randomObject, rarityPool)
-	local primaryTrait = pickWeighted(randomObject, traitsByRarity[rarityRoll.id])
+	local primaryTrait = pickWeighted(randomObject, buildPrimaryTraitPool(baseDefinition, rarityRoll.id))
 	local traits = {
 		{
 			id = primaryTrait.id,
@@ -106,7 +126,7 @@ function MutationRoller.Roll(baseId, seed)
 	}
 
 	if randomObject:NextNumber() <= MutationConfig.MutationChamber.SecondaryTraitChance then
-		local secondaryTraitPool = buildSecondaryTraitPool(primaryTrait, rarityRoll.id)
+		local secondaryTraitPool = buildSecondaryTraitPool(baseDefinition, primaryTrait, rarityRoll.id)
 		if #secondaryTraitPool > 0 then
 			local secondaryTrait = pickWeighted(randomObject, secondaryTraitPool)
 			table.insert(traits, {
@@ -136,4 +156,3 @@ function MutationRoller.Roll(baseId, seed)
 end
 
 return MutationRoller
-

@@ -8,6 +8,12 @@ local function getBaseDefinition(baseId)
 	return MutationConfig.BaseOrganisms[baseId]
 end
 
+local function isBaseOrganismUnlocked(playerData, baseId)
+	return playerData.progression
+		and playerData.progression.unlockedBaseOrganisms
+		and playerData.progression.unlockedBaseOrganisms[baseId] == true
+end
+
 local function cloneTraits(traits)
 	local clonedTraits = {}
 
@@ -51,14 +57,23 @@ function InventoryService:GetClientState(player)
 	local playerData = self:GetPlayerData(player)
 	local baseInventory = {}
 	local recentMutants = {}
+	local unlockedCount = 0
 
 	for _, baseId in ipairs(MutationConfig.BaseOrganismOrder) do
 		local definition = getBaseDefinition(baseId)
+		local isUnlocked = isBaseOrganismUnlocked(playerData, baseId)
+		if isUnlocked then
+			unlockedCount += 1
+		end
+
 		table.insert(baseInventory, {
 			id = baseId,
 			name = definition.name,
 			description = definition.description,
+			unlocked = isUnlocked,
 			quantity = playerData.inventory.baseOrganisms[baseId] or 0,
+			unlockCost = definition.unlockCost or 0,
+			unlockGrantCount = definition.unlockGrantCount or 0,
 		})
 	end
 
@@ -110,6 +125,10 @@ function InventoryService:GetClientState(player)
 			dna = playerData.currencies.dna or 0,
 		},
 		baseInventory = baseInventory,
+		organismSummary = {
+			unlockedCount = unlockedCount,
+			totalCount = #MutationConfig.BaseOrganismOrder,
+		},
 		insertedBase = insertedBase,
 		activeMutation = activeMutation,
 		mutantCount = #playerData.inventory.mutants,
@@ -133,6 +152,10 @@ function InventoryService:InsertBaseOrganism(player, baseId)
 		return false, "Unknown base organism."
 	end
 
+	if not isBaseOrganismUnlocked(playerData, baseId) then
+		return false, ("Unlock %s before using it."):format(baseDefinition.name)
+	end
+
 	if playerData.chamber.activeMutation then
 		return false, "The chamber is already mutating."
 	end
@@ -151,6 +174,41 @@ function InventoryService:InsertBaseOrganism(player, baseId)
 	self._dataService:MarkDirty(player)
 
 	return true, self:GetClientState(player)
+end
+
+function InventoryService:UnlockBaseOrganism(player, baseId)
+	local playerData = self:GetPlayerData(player)
+	local baseDefinition = getBaseDefinition(baseId)
+
+	if not baseDefinition then
+		return false, "Unknown base organism."
+	end
+
+	if isBaseOrganismUnlocked(playerData, baseId) then
+		return false, ("%s is already unlocked."):format(baseDefinition.name)
+	end
+
+	local unlockCost = baseDefinition.unlockCost or 0
+	if unlockCost <= 0 then
+		return false, "This organism cannot be unlocked."
+	end
+
+	local currentDna = playerData.currencies.dna or 0
+	if currentDna < unlockCost then
+		return false, ("You need %d DNA Credits to unlock %s."):format(unlockCost, baseDefinition.name)
+	end
+
+	playerData.currencies.dna = currentDna - unlockCost
+	playerData.progression.unlockedBaseOrganisms[baseId] = true
+	playerData.inventory.baseOrganisms[baseId] = (playerData.inventory.baseOrganisms[baseId] or 0) + (baseDefinition.unlockGrantCount or 0)
+	self._dataService:MarkDirty(player)
+
+	return true, self:GetClientState(player), {
+		baseId = baseId,
+		name = baseDefinition.name,
+		unlockCost = unlockCost,
+		grantedQuantity = baseDefinition.unlockGrantCount or 0,
+	}
 end
 
 function InventoryService:StartMutation(player, activeMutation)
