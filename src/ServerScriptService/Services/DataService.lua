@@ -10,7 +10,7 @@ local DATASTORE_NAME = "MutationLab_PlayerData_v1"
 local AUTOSAVE_INTERVAL_SECONDS = 60
 
 local playerDataLoadedSignal = Instance.new("BindableEvent")
-local playerStore = DataStoreService:GetDataStore(DATASTORE_NAME)
+local playerStore = nil
 
 local loadedDataByPlayer = {}
 local dirtyPlayers = {}
@@ -73,12 +73,33 @@ local function sanitizeLoadedData(rawData)
 	return sanitizedData
 end
 
+function DataService:_initializePlayerStore()
+	if self._playerStoreInitialized then
+		return
+	end
+
+	self._playerStoreInitialized = true
+
+	local success, result = pcall(function()
+		return DataStoreService:GetDataStore(DATASTORE_NAME)
+	end)
+
+	if success then
+		playerStore = result
+		self._persistenceEnabled = true
+	else
+		self._persistenceEnabled = false
+		warn(("[DataService] Persistence disabled for this session: %s"):format(tostring(result)))
+	end
+end
+
 function DataService:Init()
 	if self._initialized then
 		return
 	end
 
 	self._initialized = true
+	self:_initializePlayerStore()
 
 	Players.PlayerAdded:Connect(function(player)
 		self:_loadPlayerData(player)
@@ -109,14 +130,17 @@ function DataService:_loadPlayerData(player)
 	end
 
 	local loadedData = createDefaultData()
-	local success, result = pcall(function()
-		return playerStore:GetAsync(tostring(player.UserId))
-	end)
 
-	if success and result ~= nil then
-		loadedData = sanitizeLoadedData(result)
-	elseif not success then
-		warn(("[DataService] Failed to load data for %s: %s"):format(player.Name, tostring(result)))
+	if self._persistenceEnabled and playerStore ~= nil then
+		local success, result = pcall(function()
+			return playerStore:GetAsync(tostring(player.UserId))
+		end)
+
+		if success and result ~= nil then
+			loadedData = sanitizeLoadedData(result)
+		elseif not success then
+			warn(("[DataService] Failed to load data for %s: %s"):format(player.Name, tostring(result)))
+		end
 	end
 
 	loadedDataByPlayer[player] = loadedData
@@ -149,6 +173,11 @@ function DataService:SavePlayerData(player)
 	end
 
 	if not dirtyPlayers[player] then
+		return true
+	end
+
+	if not self._persistenceEnabled or playerStore == nil then
+		dirtyPlayers[player] = false
 		return true
 	end
 
