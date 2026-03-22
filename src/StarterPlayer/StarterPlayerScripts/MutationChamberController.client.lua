@@ -1,4 +1,5 @@
 local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -55,7 +56,18 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MutationLabGui"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
+screenGui.DisplayOrder = 20
 screenGui.Parent = playerGui
+
+local openLabButton = createButton(
+	screenGui,
+	"OpenLabButton",
+	"Open Lab",
+	UDim2.fromOffset(118, 42),
+	UDim2.new(1, -138, 0, 20),
+	Color3.fromRGB(120, 232, 177)
+)
+openLabButton.TextSize = 18
 
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
@@ -293,6 +305,14 @@ local function refreshState()
 	end
 end
 
+local function openPanel()
+	panel.Visible = true
+	setStatus("Chamber linked. Ready for input.", Color3.fromRGB(153, 241, 155))
+	task.spawn(refreshState)
+end
+
+openLabButton.Activated:Connect(openPanel)
+
 closeButton.Activated:Connect(function()
 	panel.Visible = false
 end)
@@ -337,10 +357,12 @@ mutateButton.Activated:Connect(function()
 	end
 end)
 
-remotes:WaitForChild("OpenChamber").OnClientEvent:Connect(function()
-	panel.Visible = true
-	setStatus("Chamber linked. Ready for input.", Color3.fromRGB(153, 241, 155))
-	refreshState()
+remotes:WaitForChild("OpenChamber").OnClientEvent:Connect(openPanel)
+
+ProximityPromptService.PromptTriggered:Connect(function(prompt)
+	if prompt.Name == "OpenPrompt" then
+		openPanel()
+	end
 end)
 
 remotes:WaitForChild("StateUpdated").OnClientEvent:Connect(function(newState)
@@ -374,4 +396,3 @@ RunService.RenderStepped:Connect(function()
 end)
 
 refreshState()
-
