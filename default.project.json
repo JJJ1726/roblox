@@ -8,9 +8,16 @@
     "ServerScriptService": {
       "$path": "src/ServerScriptService"
     },
+    "StarterGui": {
+      "$className": "StarterGui",
+      "$path": "src/StarterGui"
+    },
     "StarterPlayer": {
-      "$path": "src/StarterPlayer"
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$path": "src/StarterPlayer/StarterPlayerScripts"
+      }
     }
   }
 }
-
