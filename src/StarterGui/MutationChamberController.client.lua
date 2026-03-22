@@ -292,9 +292,7 @@ local function invokeServer(remoteName, ...)
 	end
 
 	local remote = remotes:WaitForChild(remoteName)
-	local ok, response = pcall(function()
-		return remote:InvokeServer(...)
-	end)
+	local ok, response = pcall(remote.InvokeServer, remote, ...)
 
 	if not ok then
 		setStatus("Server call failed. Check output for errors.", Color3.fromRGB(255, 143, 143))
