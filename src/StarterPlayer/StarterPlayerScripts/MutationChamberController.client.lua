@@ -6,10 +6,8 @@ local TweenService = game:GetService("TweenService")
 
 local localPlayer = Players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
-local sharedFolder = ReplicatedStorage:WaitForChild("Shared")
-local remotes = ReplicatedStorage:WaitForChild("MutationLabRemotes")
-
-local MutationConfig = require(sharedFolder:WaitForChild("MutationConfig"))
+local MutationConfig = nil
+local remotes = nil
 
 local controller = {
 	state = nil,
@@ -110,7 +108,7 @@ local storageLabel = createLabel(panel, "StorageLabel", "Stored mutants: 0", UDi
 local statusLabel = createLabel(
 	panel,
 	"StatusLabel",
-	"Walk to the chamber and press E.",
+	"Connecting to chamber systems...",
 	UDim2.fromOffset(370, 42),
 	UDim2.fromOffset(20, 238),
 	14,
@@ -157,6 +155,10 @@ local function formatTime(secondsRemaining)
 end
 
 local function getRarityColor(rarityId)
+	if MutationConfig == nil then
+		return Color3.fromRGB(240, 248, 255)
+	end
+
 	local rarityDefinition = MutationConfig.RarityTiers[rarityId]
 	if rarityDefinition then
 		return rarityDefinition.color
@@ -284,6 +286,11 @@ local function applyState(newState)
 end
 
 local function invokeServer(remoteName, ...)
+	if remotes == nil then
+		setStatus("Lab services are still loading.", Color3.fromRGB(255, 143, 143))
+		return nil
+	end
+
 	local remote = remotes:WaitForChild(remoteName)
 	local ok, response = pcall(function()
 		return remote:InvokeServer(...)
@@ -357,24 +364,26 @@ mutateButton.Activated:Connect(function()
 	end
 end)
 
-remotes:WaitForChild("OpenChamber").OnClientEvent:Connect(openPanel)
+local function bindRemotes()
+	remotes:WaitForChild("OpenChamber").OnClientEvent:Connect(openPanel)
+
+	remotes:WaitForChild("StateUpdated").OnClientEvent:Connect(function(newState)
+		applyState(newState)
+	end)
+
+	remotes:WaitForChild("MutationResolved").OnClientEvent:Connect(function(result)
+		if controller.state then
+			controller.state.lastResolvedMutation = result
+		end
+		showResultPopup(result)
+		refreshState()
+	end)
+end
 
 ProximityPromptService.PromptTriggered:Connect(function(prompt)
 	if prompt.Name == "OpenPrompt" then
 		openPanel()
 	end
-end)
-
-remotes:WaitForChild("StateUpdated").OnClientEvent:Connect(function(newState)
-	applyState(newState)
-end)
-
-remotes:WaitForChild("MutationResolved").OnClientEvent:Connect(function(result)
-	if controller.state then
-		controller.state.lastResolvedMutation = result
-	end
-	showResultPopup(result)
-	refreshState()
 end)
 
 RunService.RenderStepped:Connect(function()
@@ -395,4 +404,36 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
-refreshState()
+task.spawn(function()
+	warn("[MutationChamberController] GUI bootstrap started")
+
+	local sharedFolder = ReplicatedStorage:WaitForChild("Shared", 10)
+	if sharedFolder == nil then
+		setStatus("Shared config missing. Check Rojo sync.", Color3.fromRGB(255, 143, 143))
+		return
+	end
+
+	local mutationConfigModule = sharedFolder:WaitForChild("MutationConfig", 10)
+	if mutationConfigModule == nil then
+		setStatus("MutationConfig missing. Check Rojo sync.", Color3.fromRGB(255, 143, 143))
+		return
+	end
+
+	local ok, loadedConfig = pcall(require, mutationConfigModule)
+	if not ok then
+		setStatus("MutationConfig failed to load. Check Output.", Color3.fromRGB(255, 143, 143))
+		warn("[MutationChamberController] Failed to load MutationConfig:", loadedConfig)
+		return
+	end
+
+	MutationConfig = loadedConfig
+	remotes = ReplicatedStorage:WaitForChild("MutationLabRemotes", 10)
+	if remotes == nil then
+		setStatus("Lab remotes missing. Check server bootstrap.", Color3.fromRGB(255, 143, 143))
+		return
+	end
+
+	bindRemotes()
+	setStatus("Lab systems online. Press E or Open Lab.", Color3.fromRGB(153, 241, 155))
+	refreshState()
+end)
